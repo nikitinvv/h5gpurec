@@ -224,7 +224,7 @@ SECTIONS['retrieve-phase'] = {
         'default': 'none',
         'type': str,
         'help': "Phase retrieval correction method",
-        'choices': ['none', 'paganin', 'Gpaganin']},
+        'choices': ['none', 'paganin', 'Gpaganin','FF']},
     'energy': {
         'default': 0,
         'type': float,
@@ -249,6 +249,22 @@ SECTIONS['retrieve-phase'] = {
         'type': utils.positive_int,
         'default': 1,
         'help': "Padding with extra slices in z for phase-retrieval filtering"},
+    'FFratio': {
+        'default': 100,
+        'type': float,
+        'help': "Shape of the Fourier Filter window"},  
+    'FFdim': {
+        'default': 2,
+        'type': float,
+        'help': "1 for sinograms, 2 for projections"},  
+    'FFlog': {
+        'default': 0,
+        'type': int,
+        'help': "0/1"},
+    'FFpad': {
+        'default': 150,
+        'type': float,
+        'help': "Padding size for the Fourier Filter"},              
 }
 
 SECTIONS['rotate-proj'] = {

@@ -171,6 +171,9 @@ class ProcFunctions():
                 data,  args.pixel_size*1e-4, args.propagation_distance/10, args.energy,
                 args.retrieve_phase_alpha, args.retrieve_phase_method, args.retrieve_phase_delta_beta,
                 args.retrieve_phase_W*1e-4)  # units adjusted based on the tomopy implementation
+        if args.retrieve_phase_method == 'FF':        
+                data[:] = retrieve_phase.fresnel_filter(
+                data, args.FFratio, args.FFdim, window=None, pad=args.FFpad, apply_log=args.FFlog)        
         if args.rotate_proj_angle != 0:
             data[:] = self.rotate_proj(
                 data, args.rotate_proj_angle, args.rotate_proj_order)

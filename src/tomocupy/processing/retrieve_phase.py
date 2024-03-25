@@ -258,3 +258,110 @@ def _reciprocal_coord(pixel_size, num_grid):
     rc = cp.arange(-n, num_grid, 2, dtype=cp.float32)
     rc *= 0.5 / (n * pixel_size)
     return rc
+    
+    
+def make_fresnel_window(height, width, ratio, dim):
+    """
+    Create a low pass window based on the Fresnel propagator.
+    It is used to denoise a projection image (dim=2) or a
+    sinogram image (dim=1).
+
+    Parameters
+    ----------
+    height : int
+        Image height
+    width : int
+        Image width
+    ratio : float
+        To define the shape of the window.
+    dim : {1, 2}
+        Use "1" if working on a sinogram image and "2" if working on
+        a projection image.
+
+    Returns
+    -------
+    array_like
+        2D array.
+    """
+    ycenter = (height - 1) * 0.5
+    xcenter = (width - 1) * 0.5
+    if dim == 2:
+        u = (cp.arange(width) - xcenter) / width
+        v = (cp.arange(height) - ycenter) / height
+        u, v = cp.meshgrid(u, v)
+        window = 1.0 + ratio * (u ** 2 + v ** 2)
+    else:
+        u = (cp.arange(width) - xcenter) / width
+        win1d = 1.0 + ratio * u ** 2
+        window = cp.tile(win1d, (height, 1))
+    return window
+
+
+def fresnel_filter(data, ratio, dim, window=None, pad=150, apply_log=True):
+    """
+    Apply a low-pass filter based on the Fresnel propagator to an image
+    (Ref. [1]). It can be used for improving the contrast of an image.
+    It's simpler than the well-known Paganin's filter (Ref. [2]).
+
+    Parameters
+    ----------
+    mat : array_like
+        2D array. Projection image or sinogram image.
+    ratio : float
+        Define the shape of the window. Larger is more smoothing.
+    dim : {1, 2}
+        Use "1" if working on a sinogram image and "2" if working on
+        a projection image.
+    window : array_like, optional
+        Window for deconvolution.
+    pad : int
+        Padding width.
+    apply_log : bool, optional
+        Apply the logarithm function to the sinogram before filtering.
+
+    Returns
+    -------
+    array_like
+        2D array. Filtered image.
+
+    References
+    ----------
+    [1] : https://doi.org/10.1364/OE.418448
+
+    [2] : https://tinyurl.com/2f8nv875
+    """
+    if apply_log:
+        data = -cp.log(data)
+
+    if dim == 2:
+        (nrow, ncol, num_jobs) = data.shape
+    else:    
+        (nrow, num_jobs, ncol) = data.shape
+    for m in range(num_jobs):
+        mat = data[:, m, :] if dim != 2 else data[:, :, m]
+
+        if dim == 2:  # On projections
+            if window is None:
+                window = make_fresnel_window(nrow, ncol, ratio, dim)
+            mat_pad = cp.pad(mat, pad, mode="edge")
+            win_pad = cp.pad(window, pad, mode="edge")
+
+            mat_dec = cp.fft.ifft2(cp.fft.fft2(mat_pad) / cp.fft.ifftshift(win_pad))
+            mat_dec = cp.real(mat_dec[pad:pad + nrow, pad:pad + ncol])
+            data[:, :, m] = mat_dec
+        else:  # On sinograms
+            if window is None:
+                window = make_fresnel_window(nrow, ncol, ratio, dim)
+            mat_pad = cp.pad(mat, ((0, 0), (pad, pad)), mode='edge')
+            win_pad = cp.pad(window, ((0, 0), (pad, pad)), mode="edge")
+            mat_fft = cp.fft.fftshift(cp.fft.fft(mat_pad), axes=1) / win_pad
+            mat_dec = cp.fft.ifft(cp.fft.ifftshift(mat_fft, axes=1))
+            mat_dec = cp.real(mat_dec[:, pad:pad + ncol])
+            data[:, m, :] = mat_dec
+
+    if apply_log:
+        data = cp.exp(-data)
+
+    return data
+    
+    
