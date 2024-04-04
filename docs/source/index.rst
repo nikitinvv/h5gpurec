@@ -1,3 +1,10 @@
+.. image:: img/tomocupy-logo-wide.svg
+   :width: 320px
+   :alt: TomoPy Logo
+   :align: center
+
+|
+
 ========
 Tomocupy
 ========

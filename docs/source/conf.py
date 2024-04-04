@@ -142,6 +142,15 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
     html_theme = 'sphinx_rtd_theme'
     html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
+html_theme_options = {
+    'style_nav_header_background': '#4f8fb8ff',
+    'collapse_navigation': False,
+    'logo_only': True,
+}
+
+html_logo = 'img/tomocupy-logo-wide-mono.svg'
+html_favicon = 'img/tomocupy-logo-wide-mono.svg'
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
