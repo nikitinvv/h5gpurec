@@ -337,23 +337,26 @@ def fresnel_filter(data, ratio, dim, window=None, pad=150, apply_log=True):
         (nrow, ncol, num_jobs) = data.shape
     else:    
         (nrow, num_jobs, ncol) = data.shape
+    #create FF window
+    if window is None:
+        if dim == 2:  # On projections
+            window = make_fresnel_window(nrow, ncol, ratio, dim)
+        else:
+            window = make_fresnel_window(nrow, ncol, ratio, dim)       
+
     for m in range(num_jobs):
         mat = data[:, m, :] if dim != 2 else data[:, :, m]
-
-        if dim == 2:  # On projections
-            if window is None:
-                window = make_fresnel_window(nrow, ncol, ratio, dim)
-            mat_pad = cp.pad(mat, pad, mode="edge")
+        if dim == 2:
+            mat_pad = cp.pad(data[:, :, m], pad, mode="edge")
             win_pad = cp.pad(window, pad, mode="edge")
-
+            #win_pad = cp.repeat(win_pad[:,:,cp.newaxis], num_jobs,axis=2)
             mat_dec = cp.fft.ifft2(cp.fft.fft2(mat_pad) / cp.fft.ifftshift(win_pad))
             mat_dec = cp.real(mat_dec[pad:pad + nrow, pad:pad + ncol])
             data[:, :, m] = mat_dec
         else:  # On sinograms
-            if window is None:
-                window = make_fresnel_window(nrow, ncol, ratio, dim)
-            mat_pad = cp.pad(mat, ((0, 0), (pad, pad)), mode='edge')
+            mat_pad = cp.pad(data[:, m, :], ((0, 0), (pad, pad)), mode='edge')
             win_pad = cp.pad(window, ((0, 0), (pad, pad)), mode="edge")
+            #win_pad = cp.repeat(win_pad[:,cp.newaxis,:], num_jobs,axis=1)
             mat_fft = cp.fft.fftshift(cp.fft.fft(mat_pad), axes=1) / win_pad
             mat_dec = cp.fft.ifft(cp.fft.ifftshift(mat_fft, axes=1))
             mat_dec = cp.real(mat_dec[:, pad:pad + ncol])
