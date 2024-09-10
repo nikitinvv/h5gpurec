@@ -5,7 +5,9 @@ Installation and test
 Tomocupy works in NVidia GPUs of compute capability 6.0 and higher. To run tomocupy the system should have an `nvidia driver installed <https://developer.nvidia.com/cuda-downloads>`_. Cuda Toolkit is not necessary.
 Run ``nvidia-smi`` to check whether the driver is installed. For check compute capability of the GPU, see `this document <http://mylifeismymessage.net/find-the-compute-capability-of-your-nvidia-graphics-card-gpu/>`_. 
 
-1. Add conda-forge to anaconda channels
+0. For faster installation of packages, it is better to use `Miniforge <https://github.com/conda-forge/miniforge>`_. Then go to Step 3.
+
+1. For regular Anaconda, add conda-forge to anaconda channels
 
 ::
 
@@ -42,6 +44,8 @@ Run ``nvidia-smi`` to check whether the driver is installed. For check compute c
 ============================
 Installation for development
 ============================
+
+0. For faster installation of packages, it is better to use `Miniforge <https://github.com/conda-forge/miniforge>`_. Then go to Step 3.
 
 1. Add conda-forge to anaconda channels
 

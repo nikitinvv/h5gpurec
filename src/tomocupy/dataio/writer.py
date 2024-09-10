@@ -244,7 +244,7 @@ class Writer():
                 fid.create_dataset("/exchange/data", data=rec,
                                    chunks=(1, params.n, params.n))
         elif args.save_format == 'h5nolinks':
-            self.h5w['/exchange/data'][st:end, :, :] = rec
+            self.h5w['/exchange/data'][st:end, :, :] = rec[:end-st]
         elif args.save_format == 'h5sino':
             filename = f"{params.fnameout[:-3]}_parts/p{k:04d}.h5"
             with h5py.File(filename, "w") as fid:

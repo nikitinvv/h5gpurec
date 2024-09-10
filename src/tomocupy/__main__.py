@@ -51,7 +51,7 @@ from tomocupy import config
 from tomocupy import GPURec
 from tomocupy import FindCenter
 from tomocupy import GPURecSteps
-from tomocupy.global_vars import args
+from tomocupy.global_vars import args, params
 
 from tomocupy.dataio import reader
 from tomocupy.dataio import writer
@@ -89,6 +89,7 @@ def run_rec(args, cl_reader, cl_writer):
     if args.rotation_axis_auto == 'auto':
         clrotthandle = FindCenter(cl_reader)
         args.rotation_axis = clrotthandle.find_center()
+        params.center = args.rotation_axis
         log.warning(f'set rotaion  axis {args.rotation_axis}')
 
     # create reconstruction object and run reconstruction
@@ -112,8 +113,9 @@ def run_recsteps(args, cl_reader, cl_writer):
     t = time.time()
 
     if args.rotation_axis_auto == 'auto':
-        clrotthandle = FindCenter(cl_reader, cl_writer)
+        clrotthandle = FindCenter(cl_reader)
         args.rotation_axis = clrotthandle.find_center()
+        params.center = args.rotation_axis
         log.warning(f'set rotaion  axis {args.rotation_axis}')
 
     clpthandle = GPURecSteps(cl_reader, cl_writer)
