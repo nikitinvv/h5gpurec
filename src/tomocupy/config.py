@@ -224,7 +224,7 @@ SECTIONS['retrieve-phase'] = {
         'default': 'none',
         'type': str,
         'help': "Phase retrieval correction method",
-        'choices': ['none', 'paganin', 'Gpaganin','FF']},
+        'choices': ['none', 'paganin', 'Gpaganin', 'FF', 'farago']},
     'energy': {
         'default': 0,
         'type': float,
@@ -240,7 +240,7 @@ SECTIONS['retrieve-phase'] = {
     'retrieve-phase-delta-beta': {
         'default': 1500.0,
         'type': float,
-        'help': "delta/beta material for Generalized Paganin"},
+        'help': "delta/beta material for Generalized Paganin & Farago"},
     'retrieve-phase-W': {
         'default': 2e-4,
         'type': float,
