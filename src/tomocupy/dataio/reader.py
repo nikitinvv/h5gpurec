@@ -84,7 +84,8 @@ class Reader():
 
         # read data sizes and projection angles with a reader
         sizes = self.read_sizes()
-        theta = self.read_theta()
+        print(sizes['nproji'])
+        theta = self.read_theta(sizes['nproji'])
         nproji = sizes['nproji']
         nzi = sizes['nzi']
         ni = sizes['ni']
@@ -306,12 +307,15 @@ class Reader():
 
         return sizes
 
-    def read_theta(self):
+    def read_theta(self, projections):
         """Read projection angles (in radians)"""
 
         with h5py.File(args.file_name) as file_in:
-            theta = file_in['/exchange/theta'][:].astype('float32')/180*np.pi
-
+                if '/exchange/theta' in file_in:
+                        theta = file_in['/exchange/theta'][:].astype('float32') / 180 * np.pi
+                else:
+                        # If 'theta' doesn't exist, calculate it over the range [0, proj]
+                        theta = np.linspace(0, np.pi, projections, dtype='float32')
         return theta
 
     def read_data_chunk_to_queue(self, data_queue, ids_proj, st_z, end_z, st_n, end_n, id_z, in_dtype):

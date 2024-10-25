@@ -10,7 +10,7 @@ setup(
     packages=find_packages('src'),
     zip_safe=False,
     install_requires=[
-        'cupy',
+    	'cupy',
         'opencv-python',
         'h5py',
         'numexpr',

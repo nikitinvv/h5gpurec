@@ -1,0 +1,271 @@
+usage: tomocupy recon [-h] [--binning {0,1,2,3}]
+                      [--blocked-views BLOCKED_VIEWS] [--dark-file-name PATH]
+                      [--file-name PATH] [--file-type {standard,double_fov}]
+                      [--flat-file-name PATH] [--out-path-name PATH]
+                      [--remove-stripe-method {none,fw,ti,vo-all}]
+                      [--bright-ratio BRIGHT_RATIO]
+                      [--center-search-step CENTER_SEARCH_STEP]
+                      [--center-search-width CENTER_SEARCH_WIDTH]
+                      [--clear-folder {True,False}] [--dezinger DEZINGER]
+                      [--dezinger-threshold DEZINGER_THRESHOLD]
+                      [--dtype {float32,float16}] [--end-column END_COLUMN]
+                      [--end-proj END_PROJ] [--end-row END_ROW]
+                      [--fbp-filter {none,ramp,shepp,hann,hamming,parzen,cosine,cosine2}]
+                      [--find-center-end-row FIND_CENTER_END_ROW]
+                      [--find-center-start-row FIND_CENTER_START_ROW]
+                      [--flat-linear FLAT_LINEAR]
+                      [--max-read-threads MAX_READ_THREADS]
+                      [--max-write-threads MAX_WRITE_THREADS]
+                      [--minus-log MINUS_LOG]
+                      [--nproj-per-chunk NPROJ_PER_CHUNK] [--nsino NSINO]
+                      [--nsino-per-chunk NSINO_PER_CHUNK]
+                      [--pixel-size PIXEL_SIZE]
+                      [--rotation-axis ROTATION_AXIS]
+                      [--rotation-axis-auto {manual,auto}]
+                      [--rotation-axis-method {sift,vo}]
+                      [--rotation-axis-pairs ROTATION_AXIS_PAIRS]
+                      [--rotation-axis-sift-threshold ROTATION_AXIS_SIFT_THRESHOLD]
+                      [--save-format {tiff,h5,h5sino,h5nolinks}]
+                      [--start-column START_COLUMN] [--start-proj START_PROJ]
+                      [--start-row START_ROW]
+                      [--fw-filter {haar,db5,sym5,sym16}]
+                      [--fw-level FW_LEVEL] [--fw-pad] [--fw-sigma FW_SIGMA]
+                      [--ti-beta TI_BETA] [--ti-mask TI_MASK]
+                      [--vo-all-dim VO_ALL_DIM]
+                      [--vo-all-la-size VO_ALL_LA_SIZE]
+                      [--vo-all-sm-size VO_ALL_SM_SIZE]
+                      [--vo-all-snr VO_ALL_SNR] [--lamino-angle LAMINO_ANGLE]
+                      [--lamino-end-row LAMINO_END_ROW]
+                      [--lamino-search-step LAMINO_SEARCH_STEP]
+                      [--lamino-search-width LAMINO_SEARCH_WIDTH]
+                      [--lamino-start-row LAMINO_START_ROW]
+                      [--reconstruction-algorithm {fourierrec,lprec,linerec}]
+                      [--reconstruction-type {full,try}]
+                      [--b-storage-ring B_STORAGE_RING]
+                      [--beam-hardening-method {none,standard}]
+                      [--calculate-source {none,standard}]
+                      [--e-storage-ring E_STORAGE_RING]
+                      [--filter-1-auto FILTER_1_AUTO]
+                      [--filter-1-density FILTER_1_DENSITY]
+                      [--filter-1-material FILTER_1_MATERIAL]
+                      [--filter-1-thickness FILTER_1_THICKNESS]
+                      [--filter-2-auto FILTER_2_AUTO]
+                      [--filter-2-density FILTER_2_DENSITY]
+                      [--filter-2-material FILTER_2_MATERIAL]
+                      [--filter-2-thickness FILTER_2_THICKNESS]
+                      [--filter-3-auto FILTER_3_AUTO]
+                      [--filter-3-density FILTER_3_DENSITY]
+                      [--filter-3-material FILTER_3_MATERIAL]
+                      [--filter-3-thickness FILTER_3_THICKNESS]
+                      [--maximum-E MAXIMUM_E]
+                      [--maximum-psi-urad MAXIMUM_PSI_URAD]
+                      [--minimum-E MINIMUM_E] [--read-pixel-size]
+                      [--read-scintillator] [--sample-density SAMPLE_DENSITY]
+                      [--sample-material SAMPLE_MATERIAL]
+                      [--scintillator-density SCINTILLATOR_DENSITY]
+                      [--scintillator-material SCINTILLATOR_MATERIAL]
+                      [--scintillator-thickness SCINTILLATOR_THICKNESS]
+                      [--source-distance SOURCE_DISTANCE] [--step-E STEP_E]
+                      [--config FILE] [--config-update] [--logs-home FILE]
+                      [--verbose]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --binning {0,1,2,3}   Reconstruction binning factor as power(2, choice)
+                        (default: 0)
+  --blocked-views BLOCKED_VIEWS
+                        Angle range for blocked views [st,end]. Can be a list
+                        of ranges(e.g. [[0,1.2],[3,3.14]]) (default: none)
+  --dark-file-name PATH
+                        Name of the hdf file containing dark data (default:
+                        None)
+  --file-name PATH      Name of the last used hdf file or directory containing
+                        multiple hdf files (default: .)
+  --file-type {standard,double_fov}
+                        Input file type (default: standard)
+  --flat-file-name PATH
+                        Name of the hdf file containing flat data (default:
+                        None)
+  --out-path-name PATH  Path for output files (default: None)
+  --remove-stripe-method {none,fw,ti,vo-all}
+                        Remove stripe method: none, fourier-wavelet, titarenko
+                        (default: none)
+  --bright-ratio BRIGHT_RATIO
+                        exposure time for flat fields divided by the exposure
+                        time of projections (default: 1)
+  --center-search-step CENTER_SEARCH_STEP
+                        +/- center search step (pixel). (default: 0.5)
+  --center-search-width CENTER_SEARCH_WIDTH
+                        +/- center search width (pixel). (default: 50.0)
+  --clear-folder {True,False}
+                        Clear output folder before reconstruction (default:
+                        False)
+  --dezinger DEZINGER   Width of region for removing outliers (default: 0)
+  --dezinger-threshold DEZINGER_THRESHOLD
+                        Threshold of grayscale above local median to be
+                        considered a zinger pixel (default: 5000)
+  --dtype {float32,float16}
+                        Data type used for reconstruction. Note float16 works
+                        with power of 2 sizes. (default: float32)
+  --end-column END_COLUMN
+                        End position in x (default: -1)
+  --end-proj END_PROJ   End projection (default: -1)
+  --end-row END_ROW     End slice (default: -1)
+  --fbp-filter {none,ramp,shepp,hann,hamming,parzen,cosine,cosine2}
+                        Filter for FBP reconstruction (default: parzen)
+  --find-center-end-row FIND_CENTER_END_ROW
+                        End row to find the rotation center (default: -1)
+  --find-center-start-row FIND_CENTER_START_ROW
+                        Start row to find the rotation center (default: 0)
+  --flat-linear FLAT_LINEAR
+                        Interpolate flat fields for each projections, assumes
+                        the number of flat fields at the beginning of the scan
+                        is as the same as a the end. (default: False)
+  --max-read-threads MAX_READ_THREADS
+                        Max number of threads for reading by chunks (default:
+                        4)
+  --max-write-threads MAX_WRITE_THREADS
+                        Max number of threads for writing by chunks (default:
+                        8)
+  --minus-log MINUS_LOG
+                        Take -log or not (default: True)
+  --nproj-per-chunk NPROJ_PER_CHUNK
+                        Number of sinograms per chunk. Use lower numbers with
+                        computers with lower GPU memory. (default: 8)
+  --nsino NSINO         Location of the sinogram used for slice reconstruction
+                        and find axis (0 top, 1 bottom). Can be given as a
+                        list, e.g. [0,0.9]. (default: 0.5)
+  --nsino-per-chunk NSINO_PER_CHUNK
+                        Number of sinograms per chunk. Use larger numbers with
+                        computers with larger memory. (default: 8)
+  --pixel-size PIXEL_SIZE
+                        Pixel size [microns] (default: 0)
+  --rotation-axis ROTATION_AXIS
+                        Location of rotation axis (default: -1.0)
+  --rotation-axis-auto {manual,auto}
+                        How to get rotation axis auto calculate ('auto'), or
+                        manually ('manual') (default: manual)
+  --rotation-axis-method {sift,vo}
+                        Method for automatic rotation search. (default: sift)
+  --rotation-axis-pairs ROTATION_AXIS_PAIRS
+                        Projection pairs to find rotation axis. Each second
+                        projection in a pair will be flipped and used to find
+                        shifts from the first element in a pair. The shifts
+                        are used to calculate the center. Example [0,1499] for
+                        a 180 deg scan, or [0,1499,749,2249] for 360, etc.
+                        (default: [0,0])
+  --rotation-axis-sift-threshold ROTATION_AXIS_SIFT_THRESHOLD
+                        SIFT threshold for rotation search. (default: 0.5)
+  --save-format {tiff,h5,h5sino,h5nolinks}
+                        Output format (default: tiff)
+  --start-column START_COLUMN
+                        Start position in x (default: 0)
+  --start-proj START_PROJ
+                        Start projection (default: 0)
+  --start-row START_ROW
+                        Start slice (default: 0)
+  --fw-filter {haar,db5,sym5,sym16}
+                        Fourier-Wavelet remove stripe filter (default: sym16)
+  --fw-level FW_LEVEL   Fourier-Wavelet remove stripe level parameter
+                        (default: 7)
+  --fw-pad              When set, Fourier-Wavelet remove stripe extend the
+                        size of the sinogram by padding with zeros (default:
+                        True)
+  --fw-sigma FW_SIGMA   Fourier-Wavelet remove stripe damping parameter
+                        (default: 1)
+  --ti-beta TI_BETA     Parameter for ring removal (0,1) (default: 0.022)
+  --ti-mask TI_MASK     Mask size for ring removal (0,1) (default: 1)
+  --vo-all-dim VO_ALL_DIM
+                        Dimension of the window. (default: 1)
+  --vo-all-la-size VO_ALL_LA_SIZE
+                        Window size of the median filter to remove large
+                        stripes. (default: 61)
+  --vo-all-sm-size VO_ALL_SM_SIZE
+                        Window size of the median filter to remove small-to-
+                        medium stripes. (default: 21)
+  --vo-all-snr VO_ALL_SNR
+                        Ratio used to locate large stripes. Greater is less
+                        sensitive. (default: 3)
+  --lamino-angle LAMINO_ANGLE
+                        Pitch of the stage for laminography (default: 0)
+  --lamino-end-row LAMINO_END_ROW
+                        End slice for lamino reconstruction (default: -1)
+  --lamino-search-step LAMINO_SEARCH_STEP
+                        +/- center search step (pixel). (default: 0.25)
+  --lamino-search-width LAMINO_SEARCH_WIDTH
+                        +/- center search width (pixel). (default: 5.0)
+  --lamino-start-row LAMINO_START_ROW
+                        Start slice for lamino reconstruction (default: 0)
+  --reconstruction-algorithm {fourierrec,lprec,linerec}
+                        Reconstruction algorithm (default: fourierrec)
+  --reconstruction-type {full,try}
+                        Reconstruct full data set. (default: try)
+  --b-storage-ring B_STORAGE_RING
+                        Magnetic field for BM source in T (default: 0.599)
+  --beam-hardening-method {none,standard}
+                        Beam hardening method. (default: none)
+  --calculate-source {none,standard}
+                        Use tabulated (none, default) or calculated source
+                        (default: none)
+  --e-storage-ring E_STORAGE_RING
+                        e-beam energy for BM source in GeV (default: 7.0)
+  --filter-1-auto FILTER_1_AUTO
+                        If True, read filter 1 from HDF meta data (default:
+                        False)
+  --filter-1-density FILTER_1_DENSITY
+                        Filter 1 density in g/cm^3 (default: 1.0)
+  --filter-1-material FILTER_1_MATERIAL
+                        Filter 1 material for beam hardening (default: none)
+  --filter-1-thickness FILTER_1_THICKNESS
+                        Filter 1 thickness in microns (default: 0.0)
+  --filter-2-auto FILTER_2_AUTO
+                        If True, read filter 2 from HDF meta data (default:
+                        False)
+  --filter-2-density FILTER_2_DENSITY
+                        Filter 2 density in g/cm^3 (default: 1.0)
+  --filter-2-material FILTER_2_MATERIAL
+                        Filter 2 material for beam hardening (default: none)
+  --filter-2-thickness FILTER_2_THICKNESS
+                        Filter 2 thickness in microns (default: 0.0)
+  --filter-3-auto FILTER_3_AUTO
+                        If True, read filter 3 from HDF meta data (default:
+                        False)
+  --filter-3-density FILTER_3_DENSITY
+                        Filter 3 density in g/cm^3 (default: 1.0)
+  --filter-3-material FILTER_3_MATERIAL
+                        Filter 3 material in microns (default: none)
+  --filter-3-thickness FILTER_3_THICKNESS
+                        Filter 3 thickness for beam hardening (default: 0.0)
+  --maximum-E MAXIMUM_E
+                        Maximum energy to model in eV (default: 200000)
+  --maximum-psi-urad MAXIMUM_PSI_URAD
+                        Maximum vertical angle from centerline to model in
+                        microradians (default: 40)
+  --minimum-E MINIMUM_E
+                        Minimum energy to model in eV (default: 1000)
+  --read-pixel-size     When set, read effective pixel size from the HDF file
+                        (default: False)
+  --read-scintillator   When set, read scintillator properties from the HDF
+                        file (default: False)
+  --sample-density SAMPLE_DENSITY
+                        Density of sample material in g/cm^3 (default: 1.0)
+  --sample-material SAMPLE_MATERIAL
+                        Sample material for beam hardening (default: Fe)
+  --scintillator-density SCINTILLATOR_DENSITY
+                        Density of scintillator in g/cm^3 (default: 6.0)
+  --scintillator-material SCINTILLATOR_MATERIAL
+                        Scintillator material for beam hardening (default:
+                        LuAG_Ce)
+  --scintillator-thickness SCINTILLATOR_THICKNESS
+                        Scintillator thickness in microns (default: 100.0)
+  --source-distance SOURCE_DISTANCE
+                        Distance from source to scintillator in m (default:
+                        36.0)
+  --step-E STEP_E       Energy step in eV (default: 500)
+  --config FILE         File name of configuration file (default:
+                        /home/beams/AMITTONE/tomocupyon.conf)
+  --config-update       When set, the content of the config file is updated
+                        using the current params values (default: False)
+  --logs-home FILE      Log file directory (default:
+                        /home/beams/AMITTONE/logs)
+  --verbose             Verbose output (default: False)

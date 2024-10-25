@@ -420,7 +420,7 @@ SECTIONS['reconstruction'] = {
         'default': 'tiff',
         'type': str,
         'help': "Output format",
-        'choices': ['tiff', 'h5', 'h5sino', 'h5nolinks']},
+        'choices': ['tiff', 'h5', 'h5sino', 'h5nolinks', 'zarr']},
     'clear-folder': {
         'default': 'False',
         'type': str,

@@ -140,10 +140,9 @@ def farago_filter(
 
     # Compute the reciprocal grid.
     dx, dy, dz = data.shape
-    if method == 'farago':
-        w2 = _reciprocal_grid(pixel_size, dy + 2 * py, dz + 2 * pz)
-        phase_filter = cp.fft.fftshift(
-            _farago_filter_factor(energy, dist, db, w2))
+    w2 = _reciprocal_grid(pixel_size, dy + 2 * py, dz + 2 * pz)
+    phase_filter = cp.fft.fftshift(
+        _farago_filter_factor(energy, dist, db, w2))
 
     prj = cp.full((dy + 2 * py, dz + 2 * pz), val, dtype=data.dtype)
     _retrieve_phase(data, phase_filter, py, pz, prj, pad)
