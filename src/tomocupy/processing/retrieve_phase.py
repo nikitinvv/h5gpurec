@@ -107,6 +107,48 @@ def paganin_filter(
 
     return data
 
+def farago_filter(
+        data, pixel_size=1e-4, dist=50, energy=20, db=1000, method='farago', pad=True):
+    """
+    Perform single-step phase retrieval from phase-contrast measurements
+    :cite:`Farago:24`.
+
+    Parameters
+    ----------
+    tomo : ndarray
+        3D tomographic data.
+    pixel_size : float, optional
+        Detector pixel size in cm.
+    dist : float, optional
+        Propagation distance of the wavefront in cm.
+    energy : float, optional
+        Energy of incident wave in keV.
+    method : string
+        phase retrieval method. Standard Paganin or Generalized Paganin.
+    db : float, optional
+        delta/beta for generalized Farago phase retrieval 
+    pad : bool, optional
+        If True, extend the size of the projections by padding with zeros.
+    Returns
+    -------
+    ndarray
+        Approximated 3D tomographic phase data.
+    """
+
+    # New dimensions and pad value after padding.
+    py, pz, val = _calc_pad(data, pixel_size, dist, energy, pad)
+
+    # Compute the reciprocal grid.
+    dx, dy, dz = data.shape
+    w2 = _reciprocal_grid(pixel_size, dy + 2 * py, dz + 2 * pz)
+    phase_filter = cp.fft.fftshift(
+        _farago_filter_factor(energy, dist, db, w2))
+
+    prj = cp.full((dy + 2 * py, dz + 2 * pz), val, dtype=data.dtype)
+    _retrieve_phase(data, phase_filter, py, pz, prj, pad)
+
+    return data
+
 
 def _retrieve_phase(data, phase_filter, px, py, prj, pad):
     dx, dy, dz = data.shape
@@ -167,6 +209,8 @@ def _calc_pad(data, pixel_size, dist, energy, pad):
 def _paganin_filter_factor(energy, dist, alpha, w2):
     return 1 / (_wavelength(energy) * dist * w2 / (4 * PI) + alpha)
 
+def _farago_filter_factor(energy, dist, db, w2):
+    return 1 / (cp.cos(PI*_wavelength(energy)*dist*w2) + db*cp.sin(PI*_wavelength(energy)*dist*w2))
 
 def _paganin_filter_factorG(energy, dist, kf, pixel_size, db, W):
     """

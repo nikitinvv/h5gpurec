@@ -47,6 +47,14 @@ import os
 import sys
 import tifffile
 
+#Zarr writer
+import shutil
+import zarr
+import json
+from numcodecs import Blosc
+from tomocupy.utils import downsampleZarr
+
+
 __author__ = "Viktor Nikitin"
 __copyright__ = "Copyright (c) 2022, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
@@ -202,9 +210,14 @@ class Writer():
             self.write_meta(rec_virtual)
 
             rec_virtual.close()
-
+        if args.save_format == 'zarr':  # Zarr format support
+            fnameout += '.zarr'
+            self.zarr_output_path = fnameout
+            log.info(f'Zarr dataset will be created at {fnameout}')
+        
         params.fnameout = fnameout
         log.info(f'Output: {fnameout}')
+        
 
     def write_meta(self, rec_virtual):
 
@@ -250,9 +263,84 @@ class Writer():
             with h5py.File(filename, "w") as fid:
                 fid.create_dataset("/exchange/data", data=rec,
                                    chunks=(params.nproj, 1, params.n))
+        elif args.save_format == 'zarr':  # 
+            chunks = (1, params.n, params.n)  # Replace with appropriate chunk size
+            save_zarr(volume=rec, output_path=self.zarr_output_path, chunks=chunks, compression=args.zarr_compression, pixel_size=args.pixel_size)
 
     def write_data_try(self, rec, cid, id_slice):
         """Write tiff reconstruction with a given name"""
 
         tifffile.imwrite(
             f'{params.fnameout}_slice{id_slice:04d}_center{cid:05.2f}.tiff', rec)
+            
+            
+def save_zarr(volume, output_path, chunks, compression, pixel_size, mode='a', original_dtype=np.float32):
+    """
+    Save a 3D volume to a Zarr store, creating a multiscale pyramid representation.
+    
+    Parameters:
+    - volume (numpy array): The 3D volume data to be saved.
+    - output_path (str): The path to the output Zarr store.
+    - chunks (tuple of ints): The chunk size for the Zarr array.
+    - compression (str): The compression algorithm to use (e.g., 'blosclz', 'lz4', etc.).
+    - pixel_size (float): The size of the pixels in micrometers.
+    - mode (str, optional): The mode to open the Zarr store ('w' for write, 'a' for append). Default is 'a'.
+    - original_dtype (numpy dtype, optional): The original data type of the images. Default is np.uint8.
+    
+    Returns:
+    - None
+    """
+    store = zarr.DirectoryStore(output_path)
+    compressor = Blosc(cname=compression, clevel=5, shuffle=2)
+
+    if mode == 'w':
+        if os.path.exists(output_path):
+            shutil.rmtree(output_path)
+        root_group = zarr.group(store=store)
+    else:
+        root_group = zarr.open(store=store, mode='a')
+
+    # Assuming volume is a chunk of the data
+    pyramid_levels = downsampleZarr(volume)  # Assuming downsample is defined elsewhere for multiscale
+    
+    datasets = []
+    for level, data in enumerate(pyramid_levels):
+        data = data.astype(original_dtype)
+        
+        dataset_name = f"{level}"
+        if dataset_name in root_group:
+            z = root_group[dataset_name]
+            z.append(data, axis=0)
+        else:
+            z = root_group.create_dataset(name=dataset_name, shape=data.shape, chunks=chunks, dtype=data.dtype, compressor=compressor)
+            z[:] = data
+        
+        scale_factor = 2 ** level
+        datasets.append({
+            "path": dataset_name,
+            "coordinateTransformations": [{"type": "scale", "scale": [pixel_size * scale_factor, pixel_size * scale_factor, pixel_size * scale_factor]}]
+        })
+
+    if mode == 'w':
+        multiscales = [{
+            "version": "0.4",
+            "name": "example",
+            "axes": [
+                {"name": "z", "type": "space", "unit": "micrometer"},
+                {"name": "y", "type": "space", "unit": "micrometer"},
+                {"name": "x", "type": "space", "unit": "micrometer"}
+            ],
+            "datasets": datasets,
+            "type": "gaussian",
+            "metadata": {
+                "method": "skimage.transform.resize",
+                "version": "0.16.1",
+                "args": "[true]",
+                "kwargs": {"anti_aliasing": True, "preserve_range": True}
+            }
+        }]
+
+        root_group.attrs.update({"multiscales": multiscales})
+        with open(os.path.join(output_path, 'multiscales.json'), 'w') as f:
+            json.dump({"multiscales": multiscales}, f, indent=2)
+        #info(f"Metadata saved to {output_path}")            

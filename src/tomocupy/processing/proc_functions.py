@@ -174,6 +174,11 @@ class ProcFunctions():
         if args.retrieve_phase_method == 'FF':        
                 data[:] = retrieve_phase.fresnel_filter(
                 data, args.FFratio, args.FFdim, window=None, pad=args.FFpad, apply_log=args.FFlog)        
+        if args.retrieve_phase_method == 'farago':        
+                data[:] = retrieve_phase.farago_filter(
+                data,  args.pixel_size*1e-4, args.propagation_distance/10, args.energy,
+                args.retrieve_phase_delta_beta, args.retrieve_phase_method)
+                
         if args.rotate_proj_angle != 0:
             data[:] = self.rotate_proj(
                 data, args.rotate_proj_angle, args.rotate_proj_order)
