@@ -263,12 +263,9 @@ class Writer():
             with h5py.File(filename, "w") as fid:
                 fid.create_dataset("/exchange/data", data=rec,
                                    chunks=(params.nproj, 1, params.n))
-        elif args.save_format == 'zarr':  # Use save_zarr to write Zarr data with pyramid levels
-            pixel_size = 1.0  # Replace with actual pixel size if available
+        elif args.save_format == 'zarr':  # 
             chunks = (1, params.n, params.n)  # Replace with appropriate chunk size
-            compression = 'zstd'  # Zarr compression, adjust as necessary
-            save_zarr(volume=rec, output_path=self.zarr_output_path, chunks=chunks, compression=compression, pixel_size=pixel_size)
-            #log.info(f'Wrote chunk {k} to Zarr file with multiscale pyramid')                           
+            save_zarr(volume=rec, output_path=self.zarr_output_path, chunks=chunks, compression=args.zarr_compression, pixel_size=args.pixel_size)
 
     def write_data_try(self, rec, cid, id_slice):
         """Write tiff reconstruction with a given name"""

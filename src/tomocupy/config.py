@@ -421,6 +421,11 @@ SECTIONS['reconstruction'] = {
         'type': str,
         'help': "Output format",
         'choices': ['tiff', 'h5', 'h5sino', 'h5nolinks', 'zarr']},
+    'zarr-compression': {
+        'default': 'blosclz',
+        'type': str,
+        'help': "ZARR compression format",
+        'choices': ['blosclz', 'lz4', 'zstd']},    
     'clear-folder': {
         'default': 'False',
         'type': str,
