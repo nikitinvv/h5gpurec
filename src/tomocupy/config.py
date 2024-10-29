@@ -224,7 +224,7 @@ SECTIONS['retrieve-phase'] = {
         'default': 'none',
         'type': str,
         'help': "Phase retrieval correction method",
-        'choices': ['none', 'paganin', 'Gpaganin', 'FF', 'farago']},
+        'choices': ['none', 'paganin', 'Gpaganin', 'FourierFilter', 'farago']},
     'energy': {
         'default': 0,
         'type': float,
@@ -411,26 +411,6 @@ SECTIONS['reconstruction'] = {
         'type': int,
         'default': -1,
         'help': "End row to find the rotation center"},
-    'dtype': {
-        'default': 'float32',
-        'type': str,
-        'choices': ['float32', 'float16'],
-        'help': "Data type used for reconstruction. Note float16 works with power of 2 sizes.", },
-    'save-format': {
-        'default': 'tiff',
-        'type': str,
-        'help': "Output format",
-        'choices': ['tiff', 'h5', 'h5sino', 'h5nolinks', 'zarr']},
-    'zarr-compression': {
-        'default': 'blosclz',
-        'type': str,
-        'help': "ZARR compression format",
-        'choices': ['blosclz', 'lz4', 'zstd']},    
-    'clear-folder': {
-        'default': 'False',
-        'type': str,
-        'help': "Clear output folder before reconstruction",
-        'choices': ['True', 'False']},
     'fbp-filter': {
         'default': 'parzen',
         'type': str,
@@ -467,6 +447,29 @@ SECTIONS['reconstruction'] = {
         'type': float,
         'help': "Pixel size [microns]"},
 }
+SECTIONS['output'] ={
+    'dtype': {
+        'default': 'float32',
+        'type': str,
+        'choices': ['float32', 'float16'],
+        'help': "Data type used for reconstruction. Note float16 works with power of 2 sizes.", },
+    'save-format': {
+        'default': 'tiff',
+        'type': str,
+        'help': "Output format",
+        'choices': ['tiff', 'h5', 'h5sino', 'h5nolinks', 'zarr']},
+    'zarr-compression': {
+        'default': 'blosclz',
+        'type': str,
+        'help': "ZARR compression format",
+        'choices': ['blosclz', 'lz4', 'zstd']},    
+    'clear-folder': {
+        'default': 'False',
+        'type': str,
+        'help': "Clear output folder before reconstruction",
+        'choices': ['True', 'False']}
+}
+
 
 SECTIONS['beam-hardening'] = {
     'beam-hardening-method': {
@@ -585,9 +588,9 @@ SECTIONS['beam-hardening'] = {
 
 
 RECON_PARAMS = ('file-reading', 'remove-stripe',
-                'reconstruction', 'fw', 'ti', 'vo-all', 'lamino', 'reconstruction-types', 'beam-hardening')
+                'reconstruction', 'fw', 'ti', 'vo-all', 'lamino', 'reconstruction-types', 'beam-hardening', 'output')
 RECON_STEPS_PARAMS = ('file-reading', 'remove-stripe', 'reconstruction',
-                      'retrieve-phase', 'fw', 'ti', 'vo-all', 'lamino', 'reconstruction-steps-types', 'rotate-proj', 'beam-hardening')
+                      'retrieve-phase', 'fw', 'ti', 'vo-all', 'lamino', 'reconstruction-steps-types', 'rotate-proj', 'beam-hardening', 'output')
 
 NICE_NAMES = ('General', 'File reading', 'Remove stripe',
               'Remove stripe FW', 'Remove stripe Titarenko', 'Remove stripe Vo' 'Retrieve phase', 'Reconstruction')
