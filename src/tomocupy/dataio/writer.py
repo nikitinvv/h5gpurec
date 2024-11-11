@@ -265,7 +265,8 @@ class Writer():
                                    chunks=(params.nproj, 1, params.n))
         elif args.save_format == 'zarr':  # 
             chunks = (1, params.n, params.n)  # Replace with appropriate chunk size
-            save_zarr(volume=rec, output_path=self.zarr_output_path, chunks=chunks, compression=args.zarr_compression, pixel_size=args.pixel_size)
+            print(f'save chunk {rec[:end-st].shape}')
+            save_zarr(volume=rec[:end-st], output_path=self.zarr_output_path, chunks=chunks, compression=args.zarr_compression, pixel_size=args.pixel_size)
 
     def write_data_try(self, rec, cid, id_slice):
         """Write tiff reconstruction with a given name"""
