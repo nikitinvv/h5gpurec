@@ -84,7 +84,6 @@ class Reader():
 
         # read data sizes and projection angles with a reader
         sizes = self.read_sizes()
-        print(sizes['nproji'])
         theta = self.read_theta(sizes['nproji'])
         nproji = sizes['nproji']
         nzi = sizes['nzi']

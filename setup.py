@@ -18,5 +18,6 @@ setup(
         'pywavelets',
         'setuptools',  # for pkg_resources at runtime
         'tifffile',
+        'zarr',
     ]
 )

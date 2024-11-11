@@ -41,7 +41,8 @@ requirements:
     - opencv
     - opencv-contrib-python
     - pywavelets
-    - tifffile    
+    - tifffile
+    - zarr    
 
 about:
     home: https://github.com/tomography/tomocupy
