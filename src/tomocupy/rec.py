@@ -194,7 +194,7 @@ class GPURec():
                 st = ids[k-2]*ncz+args.start_row//2**args.binning
                 end = st+lzchunk[ids[k-2]]
                 self.write_threads[ithread].run(
-                    self.cl_writer.write_data_chunk, (rec_pinned[ithread], st, end, ids[k-2]))
+                    self.cl_writer.write_data_chunk, (rec_pinned[ithread], st, end, ids[k-2], args.start_row))
 
             self.stream1.synchronize()
             self.stream2.synchronize()

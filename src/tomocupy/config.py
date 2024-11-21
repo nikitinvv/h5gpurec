@@ -797,7 +797,7 @@ def update_hdf_process(fname, args=None, sections=None):
                         hdf_file.require_dataset(dataset, shape=(1,), dtype=dt)
                         log.info(name + ': ' + str(value))
                         try:
-                            hdf_file[dataset][0] = np.string_(str(value))
+                            hdf_file[dataset][0] = np.bytes_(str(value))
                         except TypeError:
                             log.error(
                                 "Could not convert value {}".format(value))

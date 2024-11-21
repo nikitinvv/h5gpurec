@@ -52,8 +52,11 @@ import shutil
 import zarr
 import json
 from numcodecs import Blosc
-from tomocupy.utils import downsampleZarr
+import threading
+import subprocess
+import time
 
+from skimage.transform import downscale_local_mean
 
 __author__ = "Viktor Nikitin"
 __copyright__ = "Copyright (c) 2022, UChicago Argonne, LLC."
@@ -213,8 +216,9 @@ class Writer():
         if args.save_format == 'zarr':  # Zarr format support
             fnameout += '.zarr'
             self.zarr_output_path = fnameout
+            clean_zarr(self.zarr_output_path)
             log.info(f'Zarr dataset will be created at {fnameout}')
-        
+              
         params.fnameout = fnameout
         log.info(f'Output: {fnameout}')
         
@@ -244,7 +248,8 @@ class Writer():
             log.error('write_meta() error: Skip copying meta')
             pass
 
-    def write_data_chunk(self, rec, st, end, k):
+
+    def write_data_chunk(self, rec, st, end, k, shift_index):
         """Writing the kth data chunk to hard disk"""
 
         if args.save_format == 'tiff':
@@ -263,85 +268,140 @@ class Writer():
             with h5py.File(filename, "w") as fid:
                 fid.create_dataset("/exchange/data", data=rec,
                                    chunks=(params.nproj, 1, params.n))
-        elif args.save_format == 'zarr':  # 
-            chunks = (1, params.n, params.n)  # Replace with appropriate chunk size
-            print(f'save chunk {rec[:end-st].shape}')
-            save_zarr(volume=rec[:end-st], output_path=self.zarr_output_path, chunks=chunks, compression=args.zarr_compression, pixel_size=args.pixel_size)
+        elif args.save_format == 'zarr':  # Zarr format support
+            # Define chunk size
+            chunks = (1, params.n, params.n)
+
+            if not hasattr(self, 'zarr_array'):
+                shape = (int(params.nz / 2**args.binning), params.n, params.n)  # Full dataset shape
+                
+                max_levels = lambda X, Y: (lambda r: (int(r).bit_length() - 1) if r != 0 else (int(X // Y).bit_length() - 1))(int(X) % int(Y))
+                levels = min(max_levels(params.nz, end-st),6)
+
+                self.zarr_array = initialize_zarr(
+                    output_path=self.zarr_output_path,
+                    base_shape=shape,
+                    chunks=chunks,
+                    dtype=params.dtype,
+                    num_levels=levels,
+                    compression=args.zarr_compression
+                )
+
+            # Write the current chunk to the Zarr container
+            write_zarr_chunk(
+                zarr_group=self.zarr_array,  # Pre-initialized Zarr container
+                data_chunk=rec[:end - st],  # Data chunk to save
+                start=st-shift_index,  # Starting index for this chunk along the z-axis
+                end=end-shift_index    # Ending index for this chunk along the z-axis
+            )
+            
 
     def write_data_try(self, rec, cid, id_slice):
         """Write tiff reconstruction with a given name"""
 
         tifffile.imwrite(
             f'{params.fnameout}_slice{id_slice:04d}_center{cid:05.2f}.tiff', rec)
+                        
             
-            
-def save_zarr(volume, output_path, chunks, compression, pixel_size, mode='a', original_dtype=np.float32):
+def clean_zarr(output_path):
+    if os.path.exists(output_path):
+        try:
+            subprocess.run(["rm", "-rf", output_path], check=True)            
+            log.info(f"Successfully removed directory: {output_path}")
+        except subprocess.CalledProcessError as e:
+            log.error(f"Error removing directory {output_path}: {e}")
+            raise
+    else:
+        log.warning(f"Path does not exist: {output_path}")            
+
+
+def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, compression='blosclz'):
     """
-    Save a 3D volume to a Zarr store, creating a multiscale pyramid representation.
-    
+    Initialize a multiscale Zarr container with specified levels, dimensions, and compression.
+
     Parameters:
-    - volume (numpy array): The 3D volume data to be saved.
-    - output_path (str): The path to the output Zarr store.
-    - chunks (tuple of ints): The chunk size for the Zarr array.
-    - compression (str): The compression algorithm to use (e.g., 'blosclz', 'lz4', etc.).
-    - pixel_size (float): The size of the pixels in micrometers.
-    - mode (str, optional): The mode to open the Zarr store ('w' for write, 'a' for append). Default is 'a'.
-    - original_dtype (numpy dtype, optional): The original data type of the images. Default is np.uint8.
+    - output_path (str): Path to the Zarr file.
+    - base_shape (tuple): Shape of the full dataset at the highest resolution (e.g., (z, y, x)).
+    - chunks (tuple): Chunk size for the dataset (e.g., (1, y, x)).
+    - dtype: Data type of the dataset (e.g., np.float32).
+    - num_levels (int): Number of multiresolution levels.
+    - compression (str): Compression algorithm (default 'blosclz').
     
     Returns:
-    - None
-    """
+    - zarr.Group: The initialized Zarr group containing multiscale datasets.
+    """    
     store = zarr.DirectoryStore(output_path)
     compressor = Blosc(cname=compression, clevel=5, shuffle=2)
+    root_group = zarr.group(store=store)
 
-    if mode == 'w':
-        if os.path.exists(output_path):
-            shutil.rmtree(output_path)
-        root_group = zarr.group(store=store)
-    else:
-        root_group = zarr.open(store=store, mode='a')
-
-    # Assuming volume is a chunk of the data
-    pyramid_levels = downsampleZarr(volume)  # Assuming downsample is defined elsewhere for multiscale
+    current_shape = base_shape
+    for level in range(num_levels):
+        level_name = f"{level}"
+        log.info(f"Initializing level {level} with shape {current_shape}")
+        
+        # Dynamically scale chunks based on the level
+        level_chunks = tuple(max(1, c // (2 ** level)) for c in chunks)
+        
+        # Create dataset for the current level
+        root_group.create_dataset(
+            name=level_name,
+            shape=current_shape,
+            chunks=level_chunks,
+            dtype=dtype,
+            compressor=compressor
+        )        
+        current_shape = tuple(max(1, s // 2) for s in current_shape)
     
-    datasets = []
-    for level, data in enumerate(pyramid_levels):
-        data = data.astype(original_dtype)
-        
-        dataset_name = f"{level}"
-        if dataset_name in root_group:
-            z = root_group[dataset_name]
-            z.append(data, axis=0)
+    return root_group
+
+def write_zarr_chunk(zarr_group, data_chunk, start, end):
+    """
+    Write a chunk of data into the Zarr container at all resolutions.
+
+    Parameters:
+    - zarr_group (zarr.Group): The initialized Zarr group containing multiscale datasets.
+    - data_chunk (np.ndarray): The data chunk to write (highest resolution).
+    - start (int): Start index in the first dimension (z-axis) for the highest resolution.
+    - end (int): End index in the first dimension (z-axis) for the highest resolution.
+    """
+    for level in sorted(zarr_group.keys(), key=int):  # Process levels in order (0, 1, ...)
+        zarr_array = zarr_group[level]  # Access the dataset for the current level
+
+        # Calculate the downscaling factor for this resolution level
+        scale_factor = 2 ** int(level)
+        # Downsample data chunk for this resolution level
+        if scale_factor > 1:
+            downsampled_chunk = downsample_volume(data_chunk, scale_factor)
         else:
-            z = root_group.create_dataset(name=dataset_name, shape=data.shape, chunks=chunks, dtype=data.dtype, compressor=compressor)
-            z[:] = data
-        
-        scale_factor = 2 ** level
-        datasets.append({
-            "path": dataset_name,
-            "coordinateTransformations": [{"type": "scale", "scale": [pixel_size * scale_factor, pixel_size * scale_factor, pixel_size * scale_factor]}]
-        })
+            downsampled_chunk = data_chunk
 
-    if mode == 'w':
-        multiscales = [{
-            "version": "0.4",
-            "name": "example",
-            "axes": [
-                {"name": "z", "type": "space", "unit": "micrometer"},
-                {"name": "y", "type": "space", "unit": "micrometer"},
-                {"name": "x", "type": "space", "unit": "micrometer"}
-            ],
-            "datasets": datasets,
-            "type": "gaussian",
-            "metadata": {
-                "method": "skimage.transform.resize",
-                "version": "0.16.1",
-                "args": "[true]",
-                "kwargs": {"anti_aliasing": True, "preserve_range": True}
-            }
-        }]
+        level_start = start // scale_factor
+        level_end = end // scale_factor
 
-        root_group.attrs.update({"multiscales": multiscales})
-        with open(os.path.join(output_path, 'multiscales.json'), 'w') as f:
-            json.dump({"multiscales": multiscales}, f, indent=2)
-        #info(f"Metadata saved to {output_path}")            
+        expected_z_size = level_end - level_start
+        actual_z_size = downsampled_chunk.shape[0]
+
+        if actual_z_size != expected_z_size:
+            downsampled_chunk = downsampled_chunk[:expected_z_size]
+
+        # Write the downsampled chunk into the Zarr dataset
+        zarr_array[level_start:level_end, :, :] = downsampled_chunk
+        #log.info(f"Saved chunk to level {level} [{level_start}:{level_end}] with shape {downsampled_chunk.shape}")
+
+
+
+def downsample_volume(volume, scale_factor):
+    """
+    Downsample a 3D volume by a given scale factor.
+
+    Parameters:
+    - volume (numpy array): Input 3D volume.
+    - scale_factor (int): Factor by which to downsample (e.g., 2 for halving).
+
+    Returns:
+    - numpy array: Downsampled volume.
+    """
+    if scale_factor == 1:
+        return volume  # No downsampling needed for the highest resolution
+    factors = (1, scale_factor, scale_factor)  # Only downsample spatial dimensions
+    return downscale_local_mean(volume, factors)

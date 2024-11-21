@@ -14,7 +14,7 @@ prefix3 = '--filter-1-auto True --filter-2-auto True --filter-3-auto True --samp
 prefix4 = '--filter-1-density 1.85 --filter-2-density 8.9 --filter-3-density 8.9' 
 prefix5 = '--filter-1-density 0.0 --filter-2-density 0.0 --filter-3-density 0.0' 
 cmd_dict = {
-    # f'{prefix} ': 28.307,
+    # '{prefix} ': 28.307,
     # f'{prefix} --reconstruction-algorithm lprec ': 27.992,
     # f'{prefix} --reconstruction-algorithm linerec ': 28.341,
     # f'{prefix} --dtype float16': 24.186,
@@ -90,16 +90,28 @@ class Tests(unittest.TestCase):
             time.sleep(1)
             file_name = cmd[0].split("--file-name ")[1].split('.')[0].split('/')[-1]
             data_file = Path('data_rec').joinpath(file_name)
-            with zarr.open('data_rec/test_data_rec.zarr','r') as fid:
-                print(fid[0][:].shape,fid[1][:].shape)
-                data = fid[0][:].copy()
-            print(data.shape)
-            ssum = np.sum(np.linalg.norm(data[:], axis=(1, 2)))
-            #except:
-                #pass
+
+            # Open the Zarr dataset
+            fid = zarr.open('data_rec/test_data_rec.zarr', mode='r')
+
+            # Log dataset shapes
+            print(fid[0][:].shape, fid[1][:].shape)
+
+            # Access and copy data
+            data = fid[0][:].astype(np.float64).copy()
+            print(f"Data shape: {data.shape}")
+            print(f"Data sample: {data[:5]}")
+
+            # Normalize data
+            data = np.abs(data)
+
+            # Calculate the sum of norms
+            ssum = np.sum(np.linalg.norm(data, axis=1))  # Adjust axis if needed
+            print(f"Computed ssum: {ssum}")
+            print(f"Expected value: {cmd[1]}")
+
+            # Perform the test comparison
             self.assertAlmostEqual(ssum, cmd[1], places=0)
-
-
 
 if __name__ == '__main__':
     unittest.main(testLoader=SequentialTestLoader(), failfast=True)

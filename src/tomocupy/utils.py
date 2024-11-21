@@ -52,7 +52,7 @@ import tifffile as tiff
 from skimage.transform import resize
 import time
 from functools import wraps
-
+import subprocess
 
 
 
@@ -276,7 +276,7 @@ def param_from_dxchange(hdf_file, data_path, attr=None, scalar=True, char_array=
             return None
             
            
-def downsampleZarr(data, scale_factor=2, max_levels=6):
+def downsampleZarr(data, scale_factor=2, max_levels=1):
     """
     Create a multi-level downsampled version of the input data.
 
@@ -294,9 +294,24 @@ def downsampleZarr(data, scale_factor=2, max_levels=6):
     current_level = data
     levels = [current_level]
     for _ in range(max_levels):
-        new_shape = tuple(max(1, dim // 2) for dim in current_level.shape)
+        new_shape = tuple(max(1, dim // 1) for dim in current_level.shape)
         if min(new_shape) <= 1:
             break
-        current_level = resize(current_level, new_shape, order=0, preserve_range=True, anti_aliasing=True)
+        current_level = current_level#resize(current_level, new_shape, order=0, preserve_range=True, anti_aliasing=True)
+        print(current_level.shape)
         levels.append(current_level)
     return levels            
+    
+    
+def clean_zarr(output_path):
+    if os.path.exists(output_path):
+        try:
+            subprocess.run(["mv", output_path, output_path + "_tmp"], check=True)
+            subprocess.run(["ls -lrt", output_path + "_tmp"], check=True)
+            subprocess.run(["rm", "-rf", output_path + "_tmp"], check=True)
+            log.info(f"Successfully removed directory: {output_path}")
+        except subprocess.CalledProcessError as e:
+            log.error(f"Error removing directory {output_path}: {e}")
+            raise
+    else:
+        log.warning(f"Path does not exist: {output_path}")      
