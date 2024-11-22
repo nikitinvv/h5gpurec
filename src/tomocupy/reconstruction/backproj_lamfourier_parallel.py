@@ -290,7 +290,7 @@ class BackprojLamFourierParallel():
             st = k*nchunk+params.lamino_start_row
             end = min((k+1)*nchunk, u.shape[0])+params.lamino_start_row
             th = Thread(target=self.cl_writer.write_data_chunk, args=(
-                u[k*nchunk:min((k+1)*nchunk, u.shape[0])], st, end, k))
+                u[k*nchunk:min((k+1)*nchunk, u.shape[0])], st, end, k, args.start_row))
             mthreads.append(th)
             th.start()
         for th in mthreads:
