@@ -286,7 +286,7 @@ class Writer():
                     num_levels=levels,
                     compression=args.zarr_compression
                 )
-
+            fill_zarr_meta(self.zarr_array, self.zarr_output_path, args)
             # Write the current chunk to the Zarr container
             write_zarr_chunk(
                 zarr_group=self.zarr_array,  # Pre-initialized Zarr container
@@ -314,8 +314,79 @@ def clean_zarr(output_path):
     else:
         log.warning(f"Path does not exist: {output_path}")            
 
+from pathlib import PosixPath
+from types import SimpleNamespace
 
-def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, compression='blosclz'):
+
+def args2json(data):
+    """
+    Recursively convert all unsupported types (e.g., PosixPath, Namespace) to JSON-serializable types.
+
+    Parameters:
+    - data: The input data (can be dict, list, PosixPath, Namespace, etc.).
+
+    Returns:
+    - A JSON-serializable version of the data.
+    """
+    if isinstance(data, PosixPath):
+        return str(data)  # Convert PosixPath to string
+    elif isinstance(data, SimpleNamespace):
+        return {k: args2json(v) for k, v in vars(data).items()}  # Convert Namespace to dict
+    elif isinstance(data, dict):
+        return {k: args2json(v) for k, v in data.items()}  # Recurse into dict
+    elif isinstance(data, list):
+        return [args2json(item) for item in data]  # Recurse into list
+    elif isinstance(data, tuple):
+        return tuple(args2json(item) for item in data)  # Recurse into tuple
+    else:
+        return data
+
+
+def fill_zarr_meta(root_group, output_path, args, mode='w'):
+    """
+    Fill metadata for the Zarr multiscale datasets and include additional parameters.
+
+    Parameters:
+    - output_path (str): Path to save the metadata file.
+    - datasets (list): List of datasets with their metadata.
+    - args (dict): Additional parameters to include in the metadata.
+    - mode (str): Mode for metadata handling. Default is 'w'.
+    """
+    
+    if not isinstance(args, dict):
+        metadata = vars(args)  # Convert Namespace to dictionary
+    
+    multiscales = [{
+        "version": "0.4",
+        "name": args.file_name,
+        "axes": [
+            {"name": "z", "type": "space", "unit": "micrometer"},
+            {"name": "y", "type": "space", "unit": "micrometer"},
+            {"name": "x", "type": "space", "unit": "micrometer"}
+        ],
+        "type": "gaussian",
+        "metadata": {
+            "method": "skimage.transform.downscale_local_mean",
+            "version": "0.16.1",
+            "args": "[true]",
+            "kwargs": {"anti_aliasing": True, "preserve_range": True},
+            "Reco Data": str(args)  # Add additional parameters from the params dictionary
+        }
+    }]
+
+
+    multiscales = args2json(multiscales)
+
+    if mode == 'w':
+        root_group.attrs.update({"multiscales": multiscales})
+
+        # Write human-readable JSON to file
+        metadata_file = os.path.join(output_path, str(args.file_name)[:-2] +'json')
+        with open(metadata_file, 'w') as f:
+            json.dump({"multiscales": multiscales}, f, indent=4)
+
+
+def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, compression='blosclz'):#blosclz'):
     """
     Initialize a multiscale Zarr container with specified levels, dimensions, and compression.
 
@@ -329,11 +400,12 @@ def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, compress
     
     Returns:
     - zarr.Group: The initialized Zarr group containing multiscale datasets.
-    """    
+    """
+   
     store = zarr.DirectoryStore(output_path)
     compressor = Blosc(cname=compression, clevel=5, shuffle=2)
     root_group = zarr.group(store=store)
-
+    
     current_shape = base_shape
     for level in range(num_levels):
         level_name = f"{level}"
@@ -349,10 +421,12 @@ def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, compress
             chunks=level_chunks,
             dtype=dtype,
             compressor=compressor
-        )        
+        )
+        
         current_shape = tuple(max(1, s // 2) for s in current_shape)
-    
+
     return root_group
+
 
 def write_zarr_chunk(zarr_group, data_chunk, start, end):
     """
