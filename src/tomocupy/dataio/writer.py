@@ -56,7 +56,9 @@ import threading
 import subprocess
 import time
 
-from skimage.transform import downscale_local_mean
+#from skimage.transform import downscale_local_mean
+import cupy as cp
+
 
 __author__ = "Viktor Nikitin"
 __copyright__ = "Copyright (c) 2022, UChicago Argonne, LLC."
@@ -378,7 +380,7 @@ def fill_zarr_meta(root_group, output_path, args, mode='w'):
     multiscales = args2json(multiscales)
 
     if mode == 'w':
-        root_group.attrs.update({"multiscales": multiscales})
+        root_group.attrs.update({"multiresolution": multiscales})
 
         # Write human-readable JSON to file
         metadata_file = os.path.join(output_path, str(args.file_name)[:-2] +'json')
@@ -463,7 +465,7 @@ def write_zarr_chunk(zarr_group, data_chunk, start, end):
         #log.info(f"Saved chunk to level {level} [{level_start}:{level_end}] with shape {downsampled_chunk.shape}")
 
 
-
+"""
 def downsample_volume(volume, scale_factor):
     """
     Downsample a 3D volume by a given scale factor.
@@ -479,3 +481,34 @@ def downsample_volume(volume, scale_factor):
         return volume  # No downsampling needed for the highest resolution
     factors = (1, scale_factor, scale_factor)  # Only downsample spatial dimensions
     return downscale_local_mean(volume, factors)
+"""    
+    
+
+def downsample_volume(volume, scale_factor):
+    """
+    Downsample a 3D volume by a given scale factor using NumPy.
+
+    Parameters:
+    - volume (numpy array): Input 3D volume (e.g., [z, y, x]).
+    - scale_factor (int): Factor by which to downsample (e.g., 2 for halving).
+
+    Returns:
+    - numpy array: Downsampled volume.
+    """
+    if scale_factor == 1:
+        return volume  # No downsampling needed for the highest resolution
+
+    # Ensure the input dimensions are divisible by the scale factor
+    if volume.shape[1] % scale_factor != 0 or volume.shape[2] % scale_factor != 0:
+        raise ValueError("Volume dimensions must be divisible by the scale factor.")
+
+    # Reshape the spatial dimensions for downsampling
+    z, y, x = volume.shape
+    downsampled = volume.reshape(
+        z,
+        y // scale_factor, scale_factor,
+        x // scale_factor, scale_factor
+    )
+
+    # Compute the mean along the downsampling axes
+    return downsampled.mean(axis=(2, 4))    
