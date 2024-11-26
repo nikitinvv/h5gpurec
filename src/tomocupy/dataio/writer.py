@@ -328,7 +328,7 @@ def args2json(data):
     - data: The input data (can be dict, list, PosixPath, Namespace, etc.).
 
     Returns:
-    - A JSON-serializable version of the data.
+    - A JSON data.
     """
     if isinstance(data, PosixPath):
         return str(data)  # Convert PosixPath to string
@@ -464,25 +464,6 @@ def write_zarr_chunk(zarr_group, data_chunk, start, end):
         zarr_array[level_start:level_end, :, :] = downsampled_chunk
         #log.info(f"Saved chunk to level {level} [{level_start}:{level_end}] with shape {downsampled_chunk.shape}")
 
-
-"""
-def downsample_volume(volume, scale_factor):
-    """
-    Downsample a 3D volume by a given scale factor.
-
-    Parameters:
-    - volume (numpy array): Input 3D volume.
-    - scale_factor (int): Factor by which to downsample (e.g., 2 for halving).
-
-    Returns:
-    - numpy array: Downsampled volume.
-    """
-    if scale_factor == 1:
-        return volume  # No downsampling needed for the highest resolution
-    factors = (1, scale_factor, scale_factor)  # Only downsample spatial dimensions
-    return downscale_local_mean(volume, factors)
-"""    
-    
 
 def downsample_volume(volume, scale_factor):
     """
