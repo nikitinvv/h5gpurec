@@ -56,8 +56,9 @@ import threading
 import subprocess
 import time
 
-#from skimage.transform import downscale_local_mean
 import cupy as cp
+from pathlib import PosixPath
+from types import SimpleNamespace
 
 
 __author__ = "Viktor Nikitin"
@@ -272,23 +273,26 @@ class Writer():
                                    chunks=(params.nproj, 1, params.n))
         elif args.save_format == 'zarr':  # Zarr format support
             # Define chunk size
-            chunks = (1, params.n, params.n)
+            #chunks = (1, params.n, params.n)
+            chunks = (params.nz, 256, 256)
 
             if not hasattr(self, 'zarr_array'):
                 shape = (int(params.nz / 2**args.binning), params.n, params.n)  # Full dataset shape
                 
                 max_levels = lambda X, Y: (lambda r: (int(r).bit_length() - 1) if r != 0 else (int(X // Y).bit_length() - 1))(int(X) % int(Y))
                 levels = min(max_levels(params.nz, end-st),6)
+                scale_factors = [float(args.pixel_size) * (i + 1) for i in range(levels)]
 
-                self.zarr_array = initialize_zarr(
+                self.zarr_array, datasets = initialize_zarr(
                     output_path=self.zarr_output_path,
                     base_shape=shape,
                     chunks=chunks,
                     dtype=params.dtype,
                     num_levels=levels,
+                    scale_factors=scale_factors,
                     compression=args.zarr_compression
                 )
-            fill_zarr_meta(self.zarr_array, self.zarr_output_path, args)
+                fill_zarr_meta(self.zarr_array, datasets, self.zarr_output_path, args)
             # Write the current chunk to the Zarr container
             write_zarr_chunk(
                 zarr_group=self.zarr_array,  # Pre-initialized Zarr container
@@ -316,9 +320,6 @@ def clean_zarr(output_path):
     else:
         log.warning(f"Path does not exist: {output_path}")            
 
-from pathlib import PosixPath
-from types import SimpleNamespace
-
 
 def args2json(data):
     """
@@ -344,79 +345,76 @@ def args2json(data):
         return data
 
 
-def fill_zarr_meta(root_group, output_path, args, mode='w'):
+def fill_zarr_meta(root_group, datasets, output_path, metadata_args, mode='w'):
     """
     Fill metadata for the Zarr multiscale datasets and include additional parameters.
 
     Parameters:
-    - output_path (str): Path to save the metadata file.
+    - root_group (zarr.Group): The root Zarr group.
     - datasets (list): List of datasets with their metadata.
-    - args (dict): Additional parameters to include in the metadata.
+    - output_path (str): Path to save the metadata file.
+    - metadata_args (dict): Metadata arguments for custom configurations.
     - mode (str): Mode for metadata handling. Default is 'w'.
     """
-    
-    if not isinstance(args, dict):
-        metadata = vars(args)  # Convert Namespace to dictionary
-    
     multiscales = [{
         "version": "0.4",
-        "name": args.file_name,
+        "name": "example",
         "axes": [
             {"name": "z", "type": "space", "unit": "micrometer"},
             {"name": "y", "type": "space", "unit": "micrometer"},
             {"name": "x", "type": "space", "unit": "micrometer"}
         ],
+        "datasets": datasets,
         "type": "gaussian",
         "metadata": {
-            "method": "skimage.transform.downscale_local_mean",
+            "method": "skimage.transform.resize",
             "version": "0.16.1",
-            "args": "[true]",
-            "kwargs": {"anti_aliasing": True, "preserve_range": True},
-            "Reco Data": str(args)  # Add additional parameters from the params dictionary
+            "args": [True],
+            "kwargs": {
+                "anti_aliasing": True,
+                "preserve_range": True
+            }
         }
     }]
 
-
-    multiscales = args2json(multiscales)
-
+    # Update Zarr group attributes
     if mode == 'w':
-        root_group.attrs.update({"multiresolution": multiscales})
+        root_group.attrs.update({"multiscales": multiscales})
 
-        # Write human-readable JSON to file
-        metadata_file = os.path.join(output_path, str(args.file_name)[:-2] +'json')
+        # Save metadata as JSON
+        metadata_file = os.path.join(output_path, 'multiscales.json')
         with open(metadata_file, 'w') as f:
             json.dump({"multiscales": multiscales}, f, indent=4)
 
 
-def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, compression='blosclz'):#blosclz'):
+def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, scale_factors, compression='blosclz'):
     """
     Initialize a multiscale Zarr container with specified levels, dimensions, and compression.
 
     Parameters:
     - output_path (str): Path to the Zarr file.
-    - base_shape (tuple): Shape of the full dataset at the highest resolution (e.g., (z, y, x)).
-    - chunks (tuple): Chunk size for the dataset (e.g., (1, y, x)).
-    - dtype: Data type of the dataset (e.g., np.float32).
+    - base_shape (tuple): Shape of the full dataset at the highest resolution.
+    - chunks (tuple): Chunk size for the dataset.
+    - dtype: Data type of the dataset.
     - num_levels (int): Number of multiresolution levels.
-    - compression (str): Compression algorithm (default 'blosclz').
+    - scale_factors (list): List of scale factors for each level.
+    - compression (str): Compression algorithm.
     
     Returns:
     - zarr.Group: The initialized Zarr group containing multiscale datasets.
+    - list: Dataset metadata for multiscales.
     """
-   
     store = zarr.DirectoryStore(output_path)
     compressor = Blosc(cname=compression, clevel=5, shuffle=2)
     root_group = zarr.group(store=store)
     
+    datasets = []
     current_shape = base_shape
-    for level in range(num_levels):
+
+    for level, scale in enumerate(scale_factors):
         level_name = f"{level}"
-        log.info(f"Initializing level {level} with shape {current_shape}")
-        
-        # Dynamically scale chunks based on the level
         level_chunks = tuple(max(1, c // (2 ** level)) for c in chunks)
-        
-        # Create dataset for the current level
+
         root_group.create_dataset(
             name=level_name,
             shape=current_shape,
@@ -424,10 +422,17 @@ def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, compress
             dtype=dtype,
             compressor=compressor
         )
-        
+
+        datasets.append({
+            "path": level_name,
+            "coordinateTransformations": [
+                {"type": "scale", "scale": [scale] * 3}
+            ]
+        })
+
         current_shape = tuple(max(1, s // 2) for s in current_shape)
 
-    return root_group
+    return root_group, datasets
 
 
 def write_zarr_chunk(zarr_group, data_chunk, start, end):
@@ -491,5 +496,4 @@ def downsample_volume(volume, scale_factor):
         x // scale_factor, scale_factor
     )
 
-    # Compute the mean along the downsampling axes
     return downsampled.mean(axis=(2, 4))    
