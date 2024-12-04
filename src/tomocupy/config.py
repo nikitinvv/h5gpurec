@@ -463,6 +463,10 @@ SECTIONS['output'] ={
         'type': str,
         'help': "ZARR compression format",
         'choices': ['blosclz', 'lz4', 'zstd']},    
+    'zarr-chunk': {
+        'default': '8,64,64',
+        'type': str,
+        'help': "ZARR chunk size"},
     'clear-folder': {
         'default': 'False',
         'type': str,

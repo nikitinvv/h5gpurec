@@ -221,6 +221,7 @@ class Writer():
             self.zarr_output_path = fnameout
             clean_zarr(self.zarr_output_path)
             log.info(f'Zarr dataset will be created at {fnameout}')
+            log.info(f"ZARR chunk structure: {args.zarr_chunk}")
               
         params.fnameout = fnameout
         log.info(f'Output: {fnameout}')
@@ -272,17 +273,20 @@ class Writer():
                 fid.create_dataset("/exchange/data", data=rec,
                                    chunks=(params.nproj, 1, params.n))
         elif args.save_format == 'zarr':  # Zarr format support
-            # Define chunk size
-            #chunks = (1, params.n, params.n)
-            chunks = (params.nz, 256, 256)
+
+            chunks = [int(c.strip()) for c in args.zarr_chunk.split(',')]
 
             if not hasattr(self, 'zarr_array'):
+                print(rec.shape)
+                exit(0)
                 shape = (int(params.nz / 2**args.binning), params.n, params.n)  # Full dataset shape
-                
+                print('initialize')
+                print(params.nz)
                 max_levels = lambda X, Y: (lambda r: (int(r).bit_length() - 1) if r != 0 else (int(X // Y).bit_length() - 1))(int(X) % int(Y))
                 levels = min(max_levels(params.nz, end-st),6)
+                log.info(f"Resolution levels: {levels}")
+                
                 scale_factors = [float(args.pixel_size) * (i + 1) for i in range(levels)]
-
                 self.zarr_array, datasets = initialize_zarr(
                     output_path=self.zarr_output_path,
                     base_shape=shape,
@@ -300,7 +304,6 @@ class Writer():
                 start=st-shift_index,  # Starting index for this chunk along the z-axis
                 end=end-shift_index    # Ending index for this chunk along the z-axis
             )
-            
 
     def write_data_try(self, rec, cid, id_slice):
         """Write tiff reconstruction with a given name"""
@@ -387,7 +390,7 @@ def fill_zarr_meta(root_group, datasets, output_path, metadata_args, mode='w'):
             json.dump({"multiscales": multiscales}, f, indent=4)
 
 
-def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, scale_factors, compression='blosclz'):
+def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, scale_factors, compression='None'):
     """
     Initialize a multiscale Zarr container with specified levels, dimensions, and compression.
 
@@ -413,7 +416,7 @@ def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, scale_fa
 
     for level, scale in enumerate(scale_factors):
         level_name = f"{level}"
-        level_chunks = tuple(max(1, c // (2 ** level)) for c in chunks)
+        level_chunks = tuple(max(1, int(c) // (2 ** level)) for c in chunks)
 
         root_group.create_dataset(
             name=level_name,
@@ -433,7 +436,6 @@ def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, scale_fa
         current_shape = tuple(max(1, s // 2) for s in current_shape)
 
     return root_group, datasets
-
 
 def write_zarr_chunk(zarr_group, data_chunk, start, end):
     """
@@ -496,4 +498,4 @@ def downsample_volume(volume, scale_factor):
         x // scale_factor, scale_factor
     )
 
-    return downsampled.mean(axis=(2, 4))    
+    return downsampled.mean(axis=(2, 4))
