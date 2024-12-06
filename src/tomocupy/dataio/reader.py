@@ -189,6 +189,7 @@ class Reader():
         ltchunk = np.minimum(
             ncproj, np.int32(nproj-np.arange(ntchunk)*ncproj))  # chunk sizes in proj
 
+
         tmp = literal_eval(args.nsino)
         if not isinstance(tmp, list):
             tmp = [tmp]

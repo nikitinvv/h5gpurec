@@ -381,10 +381,6 @@ SECTIONS['reconstruction'] = {
         'type': int,
         'default': -1,
         'help': "End projection"},
-    'nproj-per-chunk': {
-        'type': int,
-        'default': 8,
-        'help': "Number of sinograms per chunk. Use lower numbers with computers with lower GPU memory.", },
     'rotation-axis-auto': {
         'default': 'manual',
         'type': str,

@@ -59,6 +59,7 @@ import time
 import cupy as cp
 from pathlib import PosixPath
 from types import SimpleNamespace
+from scipy.ndimage import zoom
 
 
 __author__ = "Viktor Nikitin"
@@ -277,13 +278,13 @@ class Writer():
             chunks = [int(c.strip()) for c in args.zarr_chunk.split(',')]
 
             if not hasattr(self, 'zarr_array'):
-                print(rec.shape)
-                exit(0)
+
                 shape = (int(params.nz / 2**args.binning), params.n, params.n)  # Full dataset shape
                 print('initialize')
-                print(params.nz)
+
                 max_levels = lambda X, Y: (lambda r: (int(r).bit_length() - 1) if r != 0 else (int(X // Y).bit_length() - 1))(int(X) % int(Y))
-                levels = min(max_levels(params.nz, end-st),6)
+
+                levels = min(max_levels(int(params.nz / 2**args.binning), end-st),6)
                 log.info(f"Resolution levels: {levels}")
                 
                 scale_factors = [float(args.pixel_size) * (i + 1) for i in range(levels)]
@@ -414,14 +415,14 @@ def initialize_zarr(output_path, base_shape, chunks, dtype, num_levels, scale_fa
     datasets = []
     current_shape = base_shape
 
-    for level, scale in enumerate(scale_factors):
+    for level, _ in enumerate(scale_factors):
         level_name = f"{level}"
-        level_chunks = tuple(max(1, int(c) // (2 ** level)) for c in chunks)
+        scale = float(args.pixel_size) * (pow(2,level))
 
         root_group.create_dataset(
             name=level_name,
             shape=current_shape,
-            chunks=level_chunks,
+            chunks=chunks,
             dtype=dtype,
             compressor=compressor
         )
@@ -464,9 +465,6 @@ def write_zarr_chunk(zarr_group, data_chunk, start, end):
         expected_z_size = level_end - level_start
         actual_z_size = downsampled_chunk.shape[0]
 
-        if actual_z_size != expected_z_size:
-            downsampled_chunk = downsampled_chunk[:expected_z_size]
-
         # Write the downsampled chunk into the Zarr dataset
         zarr_array[level_start:level_end, :, :] = downsampled_chunk
         #log.info(f"Saved chunk to level {level} [{level_start}:{level_end}] with shape {downsampled_chunk.shape}")
@@ -474,7 +472,7 @@ def write_zarr_chunk(zarr_group, data_chunk, start, end):
 
 def downsample_volume(volume, scale_factor):
     """
-    Downsample a 3D volume by a given scale factor using NumPy.
+    Downsample a 3D volume by a given scale factor using scipy.ndimage.zoom.
 
     Parameters:
     - volume (numpy array): Input 3D volume (e.g., [z, y, x]).
@@ -486,16 +484,10 @@ def downsample_volume(volume, scale_factor):
     if scale_factor == 1:
         return volume  # No downsampling needed for the highest resolution
 
-    # Ensure the input dimensions are divisible by the scale factor
-    if volume.shape[1] % scale_factor != 0 or volume.shape[2] % scale_factor != 0:
-        raise ValueError("Volume dimensions must be divisible by the scale factor.")
+    # Calculate the zoom factors for each axis
+    zoom_factors = (1 / scale_factor, 1 / scale_factor, 1 / scale_factor)
 
-    # Reshape the spatial dimensions for downsampling
-    z, y, x = volume.shape
-    downsampled = volume.reshape(
-        z,
-        y // scale_factor, scale_factor,
-        x // scale_factor, scale_factor
-    )
+    # Perform downsampling using interpolation
+    downsampled = zoom(volume, zoom_factors, order=1)  # Use order=1 for bilinear interpolation
 
-    return downsampled.mean(axis=(2, 4))
+    return downsampled    
